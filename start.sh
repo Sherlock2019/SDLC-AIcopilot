@@ -8,6 +8,7 @@
 #   ./start.sh logs [service]  follow logs (backend | frontend | db)
 #   ./start.sh test            run the lab's test-suite inside the backend image
 #   ./start.sh reset           stop and delete all lab data (database + sandbox)
+#   ./start.sh install         only install Docker, Compose and buildx, then exit
 #
 # What "everything" means for a plain `./start.sh`:
 #   1. installs Docker and Docker Compose if they are missing (Amazon Linux, Ubuntu, Debian; uses sudo)
@@ -37,12 +38,31 @@ can_sudo() { [ -z "$SUDO" ] || command -v sudo >/dev/null 2>&1; }
 compose()  { "${DOCKER[@]}" compose "$@"; }
 
 # --- 1. Docker ----------------------------------------------------------------------------------
+PLUGIN_DIR=/usr/local/lib/docker/cli-plugins
+BUILDX_VERSION=v0.19.3   # docker compose needs buildx >= 0.17 to build images
+
 install_compose_plugin() {
-  local arch; arch="$(uname -m)"
-  $SUDO mkdir -p /usr/local/lib/docker/cli-plugins
-  $SUDO curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-${arch}" \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose
-  $SUDO chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+  $SUDO mkdir -p "$PLUGIN_DIR"
+  $SUDO curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+    -o "$PLUGIN_DIR/docker-compose"
+  $SUDO chmod +x "$PLUGIN_DIR/docker-compose"
+}
+
+install_buildx_plugin() {
+  local arch
+  case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) arch="$(uname -m)" ;; esac
+  $SUDO mkdir -p "$PLUGIN_DIR"
+  $SUDO curl -fsSL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-${arch}" \
+    -o "$PLUGIN_DIR/docker-buildx"
+  $SUDO chmod +x "$PLUGIN_DIR/docker-buildx"
+}
+
+buildx_ok() {  # true if buildx is installed and at least 0.17
+  local version major minor
+  version="$(docker buildx version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+' | head -1 | tr -d v)"
+  [ -n "$version" ] || return 1
+  major="${version%%.*}"; minor="${version#*.}"
+  [ "$major" -gt 0 ] || [ "$minor" -ge 17 ]
 }
 
 install_docker() {
@@ -53,14 +73,54 @@ install_docker() {
   say "Installing Docker (${PRETTY_NAME:-$ID})..."
   case "${ID:-}" in
     amzn|rhel|fedora|centos|rocky|almalinux)
-      $SUDO dnf install -y docker git curl >/dev/null 2>&1 || $SUDO yum install -y docker git curl >/dev/null ;;
+      # Not "curl": Amazon Linux 2023 ships curl-minimal, and asking for curl conflicts with it.
+      $SUDO dnf install -y docker git >/dev/null 2>&1 || $SUDO yum install -y docker git >/dev/null \
+        || die "Could not install Docker with dnf/yum." ;;
     ubuntu|debian)
       $SUDO apt-get update -qq
-      DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq docker.io git curl >/dev/null ;;
+      DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq docker.io git curl ca-certificates >/dev/null \
+        || die "Could not install Docker with apt." ;;
     *) die "Unsupported distribution '${ID:-unknown}'. Install Docker manually: https://docs.docker.com/engine/install/" ;;
   esac
   $SUDO usermod -aG docker "$(id -un)" 2>/dev/null || true
   info "Docker installed. (You were added to the 'docker' group; it applies at your next login.)"
+}
+
+# Compose and buildx are client-side plugins: they can be checked and installed without the daemon.
+ensure_plugins() {
+  if ! docker compose version >/dev/null 2>&1; then
+    [ -n "${LAB_NO_INSTALL:-}" ] && die "Docker Compose v2 is not installed (LAB_NO_INSTALL is set)."
+    can_sudo || die "Docker Compose v2 is missing and sudo is not available to install it."
+    say "Installing the Docker Compose plugin..."
+    install_compose_plugin
+    docker compose version >/dev/null 2>&1 || die "Could not install Docker Compose. See https://docs.docker.com/compose/install/"
+  fi
+  if ! buildx_ok; then
+    [ -n "${LAB_NO_INSTALL:-}" ] && die "Docker buildx 0.17+ is not installed (LAB_NO_INSTALL is set)."
+    can_sudo || die "Docker buildx 0.17+ is missing and sudo is not available to install it."
+    say "Installing the Docker buildx plugin (${BUILDX_VERSION})..."
+    install_buildx_plugin
+    buildx_ok || die "Could not install Docker buildx. See https://github.com/docker/buildx#installing"
+  fi
+}
+
+install_only() {
+  command -v docker >/dev/null 2>&1 || install_docker
+  command -v curl >/dev/null 2>&1 || die "curl is required to install the Docker plugins."
+  ensure_plugins
+  info "$(docker --version)"
+  info "$(docker compose version)"
+  info "$(docker buildx version)"
+}
+
+warn_firewall() {
+  if command -v ufw >/dev/null 2>&1 && $SUDO -n ufw status 2>/dev/null | grep -q "Status: active"; then
+    warn "ufw is active on this host: allow the UI port with  sudo ufw allow ${UI_PORT}/tcp"
+  fi
+  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    warn "firewalld is running: allow the UI port with  sudo firewall-cmd --add-port=${UI_PORT}/tcp"
+  fi
+  return 0
 }
 
 ensure_docker() {
@@ -68,6 +128,7 @@ ensure_docker() {
     [ -n "${LAB_NO_INSTALL:-}" ] && die "Docker is not installed (LAB_NO_INSTALL is set)."
     install_docker
   fi
+  ensure_plugins
   # Daemon running?
   if ! docker info >/dev/null 2>&1 && ! $SUDO docker info >/dev/null 2>&1; then
     if command -v systemctl >/dev/null 2>&1 && can_sudo && [ -z "${LAB_NO_INSTALL:-}" ]; then
@@ -84,20 +145,6 @@ ensure_docker() {
     info "Using 'sudo docker' for this session (docker group not active yet)."
   else
     die "Docker is installed but the daemon is not reachable. On a laptop, start Docker Desktop. On Linux: sudo systemctl start docker"
-  fi
-  # Compose v2 plugin
-  if ! "${DOCKER[@]}" compose version >/dev/null 2>&1; then
-    [ -n "${LAB_NO_INSTALL:-}" ] && die "Docker Compose v2 is not installed (LAB_NO_INSTALL is set)."
-    can_sudo || die "Docker Compose v2 is missing and sudo is not available to install it."
-    say "Installing the Docker Compose plugin..."
-    if [ -r /etc/os-release ] && grep -qiE '^ID=(ubuntu|debian)' /etc/os-release; then
-      DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq docker-compose-v2 >/dev/null 2>&1 \
-        || DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1 \
-        || install_compose_plugin
-    else
-      install_compose_plugin
-    fi
-    "${DOCKER[@]}" compose version >/dev/null 2>&1 || die "Could not install Docker Compose. See https://docs.docker.com/compose/install/"
   fi
 }
 
@@ -177,6 +224,7 @@ urls() {
     echo "  UI        http://${ip}:${UI_PORT}"
     echo "  API docs  http://${ip}:${API_PORT}/docs"
     echo
+    warn_firewall
     warn "One thing this script cannot do for you: the EC2 security group."
     warn "  Allow inbound TCP ${UI_PORT} from YOUR IP ONLY (add ${API_PORT} only if you want the API docs)."
     warn "  The lab has no login: anyone who can reach the port can use it and reset it."
@@ -206,26 +254,38 @@ start() {
   info "Ports: UI ${UI_PORT}, API ${API_PORT}"
 
   say "Building and starting (the first run takes a few minutes)..."
-  compose up -d --build
+  compose build
+  if compose up -d && wait_healthy 90; then urls; return 0; fi
 
+  # Self-heal once: a stale Docker network (for example after an interrupted run) leaves the
+  # API unable to reach the database. Recreating containers and network fixes it; data volumes are kept.
+  warn "Not healthy yet. Recreating the containers and network once (your data is kept)..."
+  compose down --remove-orphans >/dev/null 2>&1 || true
+  if compose up -d && wait_healthy 120; then urls; return 0; fi
+
+  echo
+  compose ps || true
+  compose logs --tail=30 backend || true
+  die "The lab did not become healthy. Inspect with: ./start.sh logs   (or restart Docker: sudo systemctl restart docker)"
+}
+
+wait_healthy() {  # wait_healthy <attempts of 2 s>
   printf 'Waiting for the lab to become healthy'
-  for _ in $(seq 1 120); do
+  for _ in $(seq 1 "$1"); do
     if curl -fsS -m 3 "http://localhost:${UI_PORT}/api/meta" >/dev/null 2>&1; then
       echo " ready."
-      urls
       return 0
     fi
     printf '.'
     sleep 2
   done
   echo
-  compose ps || true
-  compose logs --tail=30 backend || true
-  die "The lab did not become healthy in time. Inspect with: ./start.sh logs"
+  return 1
 }
 
 case "${1:-start}" in
   start|up)       start ;;
+  install)        install_only ;;
   restart)        ensure_docker; load_ports; compose down; start ;;
   stop|down)      ensure_docker; load_ports; compose down; say "Stopped. Data is kept. Start again with ./start.sh" ;;
   status)         ensure_docker; load_ports; compose ps; urls ;;
@@ -235,6 +295,6 @@ case "${1:-start}" in
                   "${DOCKER[@]}" run --rm -e LAB_DATA_DIR=/tmp/lab -v "$PWD/backend/tests:/srv/backend/tests:ro" \
                     ai-sdlc-lab-test python -m pytest ;;
   reset)          ensure_docker; load_ports; compose down -v; rm -f .lab-ports; say "Stopped and all lab data deleted." ;;
-  -h|--help|help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help|help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
   *)              die "Unknown command '$1'. Try: ./start.sh help" ;;
 esac
