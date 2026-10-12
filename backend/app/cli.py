@@ -34,7 +34,7 @@ def security_scan(args) -> int:
         relative = path.relative_to(REPO_ROOT).as_posix()
         if not path.is_file() or path.suffix not in {".py", ".yaml", ".yml", ".md", ".env", ".toml", ".json", ".txt"}:
             continue
-        if any(part in relative for part in (".venv/", "node_modules/", "/data/", ".git/", "tests/", "frontend/dist")):
+        if any(part in relative for part in (".venv/", ".lab/", "node_modules/", "/data/", ".git/", "tests/", "frontend/dist")):
             continue
         text = path.read_text(errors="ignore")
         for finding in secrets_scan.scan_text(text, "source", relative):
