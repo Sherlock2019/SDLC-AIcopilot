@@ -53,12 +53,12 @@ class _Timed:
 
 
 class AnthropicProvider:
-    """Claude through the official Anthropic SDK."""
+    """Anthropic models through the official Anthropic SDK. `AI_MODEL` is the model id."""
 
     name = "anthropic"
 
     def default_model(self) -> str:
-        return os.environ.get("AI_MODEL") or "claude-opus-5-5"
+        return os.environ.get("AI_MODEL", "")
 
     def _client(self):
         try:
@@ -78,7 +78,7 @@ class AnthropicProvider:
     def complete(self, *, system, prompt, task, payload, model="", prompt_version="v2") -> LLMResponse:
         import anthropic
 
-        client, model = self._client(), model or self.default_model()
+        client, model = self._client(), _model(model)
         with _Timed() as timer:
             try:
                 message = self._create(client, model, system, prompt)
@@ -97,12 +97,10 @@ class AnthropicProvider:
 
 
 class BedrockProvider(AnthropicProvider):
-    """Claude on Amazon Bedrock through the SDK's Bedrock client. Credentials come from the AWS chain."""
+    """Anthropic models on Amazon Bedrock through the SDK's Bedrock client. `AI_MODEL` is the
+    Bedrock model id. Credentials come from the AWS chain."""
 
     name = "bedrock"
-
-    def default_model(self) -> str:
-        return os.environ.get("AI_MODEL") or "anthropic.claude-opus-5-5"
 
     def _client(self):
         try:

@@ -16,8 +16,8 @@ PROVIDERS = {
 }
 
 REQUIRES = {
-    "mock": [], "anthropic": ["ANTHROPIC_API_KEY"], "openai": ["OPENAI_API_KEY", "AI_MODEL"],
-    "gemini": ["GOOGLE_API_KEY", "AI_MODEL"], "bedrock": ["AWS_REGION"],
+    "mock": [], "anthropic": ["ANTHROPIC_API_KEY", "AI_MODEL"], "openai": ["OPENAI_API_KEY", "AI_MODEL"],
+    "gemini": ["GOOGLE_API_KEY", "AI_MODEL"], "bedrock": ["AWS_REGION", "AI_MODEL"],
     "azure": ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_API_VERSION", "AI_MODEL"],
     "huggingface": ["HF_TOKEN", "AI_MODEL"], "ollama": ["AI_MODEL"],
 }
