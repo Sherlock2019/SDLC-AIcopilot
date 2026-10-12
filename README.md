@@ -26,16 +26,19 @@ cd SDLC-AIcopilot
 
 No API key, no account, no `.env` file. `MOCK_AI=true` is the default.
 
-`./start.sh` builds, starts, waits until the lab is healthy and prints the URLs. If port 3000 or
-8000 is taken it uses the next free one. Also: `./start.sh stop | status | logs | reset`.
+`./start.sh` does everything needed on a fresh machine: installs Docker and Compose if they are
+missing (Amazon Linux, Ubuntu, Debian), starts the daemon, adds swap on very small instances,
+creates a mock-AI `.env`, picks free ports if 3000 or 8000 are taken, builds, starts, waits until
+the lab is healthy and prints the URLs. Set `LAB_NO_INSTALL=1` to forbid system changes.
+Also: `./start.sh stop | restart | status | logs | test | reset`.
 
 ### Running on AWS EC2
 
 ```bash
 # on the instance (Amazon Linux 2023 or Ubuntu, t3.small or larger, 12 GB disk)
+sudo dnf install -y git || sudo apt-get install -y git
 git clone https://github.com/Sherlock2019/SDLC-AIcopilot.git && cd SDLC-AIcopilot
-./start.sh install-docker     # once; then log out and back in
-./start.sh                    # prints http://<public-ip>:3000
+./start.sh                    # installs Docker if needed, then prints http://<public-ip>:3000
 ```
 
 The UI calls the API through its own origin, so no IP address is configured anywhere: whatever
