@@ -20,8 +20,8 @@ cd SDLC-AIcopilot
 
 | | |
 |---|---|
-| UI | http://localhost:3000 |
-| API docs | http://localhost:3000/docs |
+| UI | http://localhost:4000 |
+| API docs | http://localhost:4000/docs |
 
 No API key, no account, no `.env` file. `MOCK_AI=true` is the default.
 
@@ -49,13 +49,13 @@ server. Commands: `./start.sh stop | restart | status | logs | test | reset | bo
 # Amazon Linux 2023 or Ubuntu 22.04/24.04, t3.micro is enough for the light version
 sudo dnf install -y git || sudo apt-get install -y git
 git clone https://github.com/Sherlock2019/SDLC-AIcopilot.git && cd SDLC-AIcopilot
-./start.sh                    # prints http://<public-ip>:3000
+./start.sh                    # prints http://<public-ip>:4000  (another port: PORT=5000 ./start.sh)
 ```
 
 One process serves the UI and the API on the same port, so no IP address is configured anywhere.
 `start.sh` reads the public IP from instance metadata and prints it.
 
-**Security group:** allow inbound TCP 3000 from *your IP only*. The lab has no login. Anyone who
+**Security group:** allow inbound TCP 4000 from *your IP only*. The lab has no login. Anyone who
 can reach the port can drive it and reset it, so never open it to `0.0.0.0/0`, and run
 `./start.sh stop` after the presentation.
 

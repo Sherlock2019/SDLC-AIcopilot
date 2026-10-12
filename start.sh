@@ -12,7 +12,7 @@
 #   ./start.sh reset           stop and delete all lab data
 #   ./start.sh boot            also start automatically after a reboot (adds a @reboot crontab line)
 #
-# Port: PORT (default 3000; the next free port is used if it is taken).
+# Port: PORT (default 4000; the next free port is used if it is taken).
 # Needs: curl. git and tar are installed automatically on Amazon Linux / Ubuntu if missing.
 
 set -euo pipefail
@@ -92,7 +92,7 @@ port_busy() {
 }
 
 pick_port() {
-  local port="${PORT:-3000}"
+  local port="${PORT:-4000}"
   while port_busy "$port"; do port=$((port + 1)); done
   echo "$port"
 }
