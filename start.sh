@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # AI-SDLC Champion Lab - one-command launcher for a laptop or an AWS EC2 instance.
 #
-#   ./start.sh                 do everything: install what is missing, build, start, print URLs
-#   ./start.sh stop            stop the stack (data is kept)
+#   ./start.sh                 do everything: install what is missing, build, start in the
+#                              background, print URLs (survives logout and reboot)
+#   ./start.sh stop            stop the stack (data is kept; no restart after reboot)
 #   ./start.sh restart         stop, rebuild and start
 #   ./start.sh status          show containers and URLs
 #   ./start.sh logs [service]  follow logs (backend | frontend | db)
@@ -30,6 +31,7 @@ info() { printf '  %s\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*"; }
 die()  { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 
+BUILD_LOG="$PWD/.lab-build.log"
 DOCKER=(docker)
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
@@ -253,20 +255,32 @@ start() {
   printf 'UI_PORT=%s\nAPI_PORT=%s\n' "$UI_PORT" "$API_PORT" > .lab-ports
   info "Ports: UI ${UI_PORT}, API ${API_PORT}"
 
-  say "Building and starting (the first run takes a few minutes)..."
-  compose build
-  if compose up -d && wait_healthy 90; then urls; return 0; fi
+  say "Building images in the background (first run takes a few minutes; full output: ${BUILD_LOG})..."
+  if ! compose build >"$BUILD_LOG" 2>&1; then
+    tail -25 "$BUILD_LOG"
+    die "Build failed. Full output: ${BUILD_LOG}"
+  fi
+  say "Starting containers in the background..."
+  if compose up -d >>"$BUILD_LOG" 2>&1 && wait_healthy 90; then running; return 0; fi
 
   # Self-heal once: a stale Docker network (for example after an interrupted run) leaves the
   # API unable to reach the database. Recreating containers and network fixes it; data volumes are kept.
   warn "Not healthy yet. Recreating the containers and network once (your data is kept)..."
-  compose down --remove-orphans >/dev/null 2>&1 || true
-  if compose up -d && wait_healthy 120; then urls; return 0; fi
+  compose down --remove-orphans >>"$BUILD_LOG" 2>&1 || true
+  if compose up -d >>"$BUILD_LOG" 2>&1 && wait_healthy 120; then running; return 0; fi
 
   echo
   compose ps || true
   compose logs --tail=30 backend || true
   die "The lab did not become healthy. Inspect with: ./start.sh logs   (or restart Docker: sudo systemctl restart docker)"
+}
+
+running() {
+  urls
+  echo
+  say "Running in the background."
+  echo "  You can close this terminal or SSH session; the lab keeps running."
+  echo "  It also restarts automatically after a reboot, until you run ./start.sh stop."
 }
 
 wait_healthy() {  # wait_healthy <attempts of 2 s>
@@ -295,6 +309,6 @@ case "${1:-start}" in
                   "${DOCKER[@]}" run --rm -e LAB_DATA_DIR=/tmp/lab -v "$PWD/backend/tests:/srv/backend/tests:ro" \
                     ai-sdlc-lab-test python -m pytest ;;
   reset)          ensure_docker; load_ports; compose down -v; rm -f .lab-ports; say "Stopped and all lab data deleted." ;;
-  -h|--help|help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help|help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//' ;;
   *)              die "Unknown command '$1'. Try: ./start.sh help" ;;
 esac

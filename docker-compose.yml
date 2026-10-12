@@ -5,11 +5,13 @@
 #   API docs  http://localhost:8000/docs
 #
 # Works with no .env file and no API keys (MOCK_AI=true).
+# Containers run in the background and restart after a reboot until stopped (./start.sh stop).
 # If a port is taken:  API_PORT=8010 UI_PORT=3010 docker compose up
 
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: lab
       POSTGRES_PASSWORD: lab-local-only   # local demo database, not a secret
@@ -26,6 +28,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://lab:lab-local-only@db:5432/lab}  # allow-secret: local demo database
       MOCK_AI: ${MOCK_AI:-true}
@@ -48,6 +51,7 @@ services:
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "${UI_PORT:-3000}:3000"
     depends_on:
