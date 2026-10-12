@@ -32,6 +32,7 @@ class Settings:
         self.context_dir = REPO_ROOT / "context_repo"
         self.sample_app_dir = REPO_ROOT / "sample_app"
         self.policies_dir = REPO_ROOT / "policies"
+        self.frontend_dist = Path(os.environ.get("FRONTEND_DIST") or REPO_ROOT / "frontend" / "dist")
         self.cors_origins = [o for o in (os.environ.get("CORS_ORIGINS") or "*").split(",") if o]
 
     @property

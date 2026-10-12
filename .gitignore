@@ -11,6 +11,6 @@ coverage.xml
 htmlcov/
 backend/data/
 node_modules/
-frontend/dist/
+.lab/
 *.db
 .DS_Store

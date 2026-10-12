@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -729,3 +729,19 @@ def mcp_rpc(body: dict, db: Session = Depends(get_session), x_agent_id: str = He
     else:
         return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": f"Method not found: {method}"}}
     return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
+
+
+# --- UI (light mode) ------------------------------------------------------------------------------
+# When the built UI is present, the API serves it too: one process, one port, no nginx.
+# Registered last so every API route above takes precedence.
+UI_DIST = (settings.frontend_dist).resolve()
+
+if (UI_DIST / "index.html").exists():
+    @app.get("/{path:path}", include_in_schema=False)
+    def ui(path: str):
+        if path.startswith("api/"):
+            raise HTTPException(404, "Not found.")
+        target = (UI_DIST / path).resolve()
+        if path and target.is_file() and UI_DIST in target.parents:
+            return FileResponse(target)
+        return FileResponse(UI_DIST / "index.html")  # client-side routes such as /security

@@ -13,40 +13,51 @@ must stay in control.
 > AI proposes. Humans remain accountable.
 
 ```bash
-git clone git@github.com:Sherlock2019/SDLC-AIcopilot.git
+git clone https://github.com/Sherlock2019/SDLC-AIcopilot.git
 cd SDLC-AIcopilot
-./start.sh            # or: docker compose up
+./start.sh
 ```
 
 | | |
 |---|---|
 | UI | http://localhost:3000 |
-| API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
+| API docs | http://localhost:3000/docs |
 
 No API key, no account, no `.env` file. `MOCK_AI=true` is the default.
 
-`./start.sh` does everything needed on a fresh machine: installs Docker and Compose if they are
-missing (Amazon Linux, Ubuntu, Debian), starts the daemon, adds swap on very small instances,
-creates a mock-AI `.env`, picks free ports if 3000 or 8000 are taken, builds, starts, waits until
-the lab is healthy and prints the URLs. Set `LAB_NO_INSTALL=1` to forbid system changes.
-Also: `./start.sh stop | restart | status | logs | test | reset`.
+### Two ways to run it
+
+| | `./start.sh` (light, default) | `./start-docker.sh` (full stack) |
+|---|---|---|
+| Needs | `curl` | Docker (installed for you) |
+| Processes | 1 Python process, 1 port | API, nginx UI, PostgreSQL containers |
+| Storage | SQLite | PostgreSQL |
+| First start on a fresh machine | about 25-45 s | several minutes (image builds) |
+| Restart | about 2 s | about 20 s |
+| Memory | about 85 MB | over 1 GB during the build |
+| Smallest EC2 | t3.micro | t3.small |
+
+The light launcher installs `git`/`tar` if missing, installs [uv](https://docs.astral.sh/uv/),
+which fetches Python 3.12 if the OS has an older one, installs the dependencies and starts the
+lab in the background. The built UI is committed in `frontend/dist`, so no Node.js is needed on the
+server. Commands: `./start.sh stop | restart | status | logs | test | reset | boot`
+(`boot` starts it automatically after a reboot).
 
 ### Running on AWS EC2
 
 ```bash
-# on the instance (Amazon Linux 2023 or Ubuntu, t3.small or larger, 12 GB disk)
+# Amazon Linux 2023 or Ubuntu 22.04/24.04, t3.micro is enough for the light version
 sudo dnf install -y git || sudo apt-get install -y git
 git clone https://github.com/Sherlock2019/SDLC-AIcopilot.git && cd SDLC-AIcopilot
-./start.sh                    # installs Docker if needed, then prints http://<public-ip>:3000
+./start.sh                    # prints http://<public-ip>:3000
 ```
 
-The UI calls the API through its own origin, so no IP address is configured anywhere: whatever
-address reaches port 3000 works. `start.sh` reads the public IP from instance metadata and prints it.
+One process serves the UI and the API on the same port, so no IP address is configured anywhere.
+`start.sh` reads the public IP from instance metadata and prints it.
 
-**Security group:** allow inbound TCP 3000 from *your IP only* (add 8000 only if you want the API
-docs). The lab has no login. Anyone who can reach the port can drive it and reset it, so never open
-it to `0.0.0.0/0`, and run `./start.sh stop` after the presentation.
+**Security group:** allow inbound TCP 3000 from *your IP only*. The lab has no login. Anyone who
+can reach the port can drive it and reset it, so never open it to `0.0.0.0/0`, and run
+`./start.sh stop` after the presentation.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 

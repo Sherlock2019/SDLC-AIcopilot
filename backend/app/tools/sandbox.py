@@ -9,6 +9,7 @@ blocked here. See policies/topology.yaml (`sandbox-process -> network.fetch`).
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -105,6 +106,9 @@ def run_pytest(workdir: Path, cache_key: str = "", select: list[str] | None = No
 
 
 def run_ruff(workdir: Path) -> dict:
+    # Exit code 1 means both "lint errors" and "module not found", so check availability first.
+    if importlib.util.find_spec("ruff") is None:
+        return {"available": False, "passed": False, "output": "ruff is not installed", "duration_s": 0}
     raw = run_command(Path(workdir), [sys.executable, "-m", "ruff", "check", "--isolated", "--no-cache",
                                       "--select", "E,F,W", "--line-length", "120", "app", "tests"], timeout=60)
     available = raw["exit_code"] in (0, 1)
