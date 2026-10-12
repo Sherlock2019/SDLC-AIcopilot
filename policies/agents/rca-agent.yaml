@@ -1,0 +1,31 @@
+agent: rca-agent
+display_name: RCA Agent
+kind: ai
+owner: Site Reliability Engineering
+purpose: Correlate evidence with recent changes, form hypotheses, recommend remediation, document the RCA
+model: default
+classification: confidential
+data_accessed: [application logs, metrics, deployment history, recent diffs, incident history]
+cost_ceiling_usd: 0.75
+retention_days: 730
+network: none
+secrets: false
+
+allowed:
+  - logs.search
+  - metrics.read
+  - deploy.read
+  - repo.read
+  - context.search
+  - context.write
+
+# The RCA agent may recommend and REQUEST a rollback. The on-call SRE decides.
+require_approval:
+  - production.rollback
+
+denied:
+  - production.deploy
+  - branch.write
+  - main.merge
+  - secrets.read
+  - network.fetch

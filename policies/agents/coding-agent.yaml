@@ -1,0 +1,40 @@
+agent: coding-agent
+display_name: Coding Agent
+kind: ai
+owner: Platform Engineering
+purpose: Generate feature branch changes from an approved requirement and architecture
+model: default
+classification: internal
+data_accessed: [approved requirement, approved architecture, coding standards, repository source]
+cost_ceiling_usd: 2.00
+retention_days: 30
+network: none
+secrets: false
+
+allowed:
+  - repo.read
+  - repo.search
+  - context.search
+  - branch.create
+  - branch.write
+  - test.run
+  - pr.create
+
+denied:
+  - main.merge
+  - production.deploy
+  - production.rollback
+  - secrets.read
+  - iam.modify
+  - policy.modify
+  - db.delete
+  - billing.read
+  - repo.write
+  - github.workflow.write
+  - deployment.trigger
+  - network.fetch
+
+constraints:
+  branch.write:
+    deny_branches: [main, "release/*"]
+    deny_paths: [".github/**", "policies/**", "**/*.pem", ".env*"]

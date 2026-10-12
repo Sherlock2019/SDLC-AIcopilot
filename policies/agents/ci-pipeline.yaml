@@ -1,0 +1,33 @@
+# Not an AI agent. This is the automated pipeline identity: the only identity that can deploy.
+agent: ci-pipeline
+display_name: CI/CD Pipeline
+kind: system
+owner: Platform Engineering
+purpose: Run quality gates and promote one immutable build through the environments
+model: none
+classification: restricted
+data_accessed: [repository source, build artifacts, environment state]
+cost_ceiling_usd: 0
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - repo.read
+  - test.run
+  - eval.run
+  - security.scan
+  - ci.read
+  - deploy.read
+  - deploy.staging
+
+require_approval:
+  - production.deploy
+  - production.rollback
+
+denied:
+  - branch.write
+  - main.merge
+  - secrets.read
+  - iam.modify
+  - policy.modify

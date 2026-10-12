@@ -1,0 +1,26 @@
+agent: review-agent
+display_name: Review Agent
+kind: ai
+owner: Platform Engineering
+purpose: First-pass code review of a proposed change. Comments only, never approves.
+model: default
+classification: internal
+data_accessed: [pull request diff, coding standards, API guidelines]
+cost_ceiling_usd: 0.75
+retention_days: 90
+network: none
+secrets: false
+
+allowed:
+  - pr.read
+  - pr.comment
+  - repo.read
+  - context.search
+
+denied:
+  - branch.write
+  - approval.decide
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

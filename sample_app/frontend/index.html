@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Portal</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 420px; margin: 48px auto; padding: 0 16px; color: #1c2430; }
+    label { display: block; margin: 12px 0 4px; font-weight: 600; }
+    input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #b8c0cc; border-radius: 6px; }
+    button { margin-top: 16px; padding: 8px 16px; border: 0; border-radius: 6px; background: #1d5fd1; color: #fff; cursor: pointer; }
+    pre { background: #f2f4f7; padding: 12px; border-radius: 6px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Customer Portal</h1>
+  <form id="login">
+    <label for="email">Email</label><input id="email" type="email" required>
+    <label for="password">Password</label><input id="password" type="password" required>
+    <button>Sign in</button>
+  </form>
+  <pre id="out">Not signed in.</pre>
+  <script>
+    const api = new URLSearchParams(location.search).get("api") || "http://localhost:8100";
+    const out = document.getElementById("out");
+    document.getElementById("login").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const body = JSON.stringify({ email: email.value, password: password.value });
+      const login = await fetch(api + "/login", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      if (!login.ok) { out.textContent = "Sign-in failed."; return; }
+      const { access_token } = await login.json();
+      const profile = await fetch(api + "/profile", { headers: { Authorization: "Bearer " + access_token } });
+      out.textContent = JSON.stringify(await profile.json(), null, 2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+agent: incident-agent
+display_name: Incident Agent
+kind: ai
+owner: Site Reliability Engineering
+purpose: Detect, triage and collect evidence for production incidents
+model: default
+classification: confidential
+data_accessed: [application logs, metrics, deployment history]
+cost_ceiling_usd: 0.50
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - logs.search
+  - metrics.read
+  - deploy.read
+
+denied:
+  - production.deploy
+  - production.rollback
+  - branch.write
+  - main.merge
+  - secrets.read
+  - network.fetch

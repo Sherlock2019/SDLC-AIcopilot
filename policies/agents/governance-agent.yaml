@@ -1,0 +1,24 @@
+agent: governance-agent
+display_name: Governance Agent
+kind: ai
+owner: AI Governance Office
+purpose: Summarise AI usage, cost, approvals and blocked actions from the audit log
+model: default
+classification: confidential
+data_accessed: [audit log, agent policies, usage metrics]
+cost_ceiling_usd: 0.25
+retention_days: 730
+network: none
+secrets: false
+
+allowed:
+  - audit.read
+  - metrics.read
+
+denied:
+  - policy.modify
+  - branch.write
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

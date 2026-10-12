@@ -1,0 +1,23 @@
+agent: requirement-agent
+display_name: Requirement Agent
+kind: ai
+owner: Product Engineering
+purpose: Turn a business request into a reviewable requirement analysis
+model: default
+classification: internal
+data_accessed: [business request, engineering context repository]
+cost_ceiling_usd: 0.50
+retention_days: 90
+network: none
+secrets: false
+
+allowed:
+  - context.search
+  - repo.search
+
+denied:
+  - branch.write
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

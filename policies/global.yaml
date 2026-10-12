@@ -1,0 +1,40 @@
+# Global policy. Applies to every identity before any agent-level rule is read.
+#
+# Evaluation order used by the policy engine (backend/app/core/policy.py):
+#   1. kill switch            -> every tool execution is blocked
+#   2. invariants (below)     -> cannot be overridden by any agent policy file
+#   3. agent `denied`         -> DENY
+#   4. `require_approval`     -> REQUIRE_APPROVAL (a named human with the right role must approve)
+#   5. agent `allowed`        -> ALLOW (then constraints are checked)
+#   6. anything else          -> DENY (default deny)
+
+invariants:
+  # An AI agent can never be granted these, whatever its own policy file says.
+  never_for_ai:
+    - main.merge
+    - secrets.read
+    - iam.modify
+    - policy.modify
+    - approval.decide
+    - db.delete
+  # An AI agent can at most REQUEST these. Execution needs human approval and is
+  # performed by the pipeline identity, never by the agent.
+  approval_at_most:
+    - production.deploy
+    - production.rollback
+
+require_approval:
+  production.deploy: release_manager
+  production.rollback: sre
+
+# Human role-based access control.
+roles:
+  product_owner: [approve.requirement]
+  engineer: [approve.requirement, approve.pr, main.merge, incident.simulate, run.advance]
+  architect: [approve.architecture, run.advance]
+  release_manager: [approve.production, run.advance]
+  sre: [approve.rollback, incident.simulate, run.advance]
+  security_admin: [policy.modify, flags.modify, redteam.run, run.advance]
+
+# Outbound network allowlist for tools that can reach the network. Empty = no egress.
+network_allowlist: []

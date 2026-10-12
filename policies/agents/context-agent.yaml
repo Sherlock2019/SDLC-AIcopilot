@@ -1,0 +1,24 @@
+agent: context-agent
+display_name: Context Agent
+kind: ai
+owner: Platform Engineering
+purpose: Retrieve, rank, compress and budget the context other agents are allowed to see
+model: default
+classification: internal
+data_accessed: [engineering context repository, repository source]
+cost_ceiling_usd: 0.25
+retention_days: 30
+network: none
+secrets: false
+
+allowed:
+  - context.search
+  - repo.read
+  - repo.search
+
+denied:
+  - branch.write
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

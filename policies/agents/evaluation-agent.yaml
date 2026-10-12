@@ -1,0 +1,25 @@
+agent: evaluation-agent
+display_name: Evaluation Agent
+kind: ai
+owner: AI Platform
+purpose: Score AI output against reusable fixtures so quality is measured, not assumed
+model: default
+classification: internal
+data_accessed: [agent outputs, evaluation fixtures, feature branch source]
+cost_ceiling_usd: 1.00
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - eval.run
+  - repo.read
+  - pr.read
+  - audit.read
+
+denied:
+  - branch.write
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

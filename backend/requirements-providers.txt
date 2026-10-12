@@ -1,0 +1,3 @@
+# Optional. Only needed when MOCK_AI=false and AI_PROVIDER is anthropic or bedrock.
+# The other providers (OpenAI, Azure OpenAI, Gemini, Hugging Face, Ollama) use plain HTTP.
+anthropic

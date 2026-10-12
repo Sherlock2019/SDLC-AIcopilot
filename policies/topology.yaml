@@ -1,0 +1,203 @@
+# Capability topology: what every tool touches, and how systems are connected to each other.
+#
+# The policy files say what an agent is GRANTED.
+# This file lets the Capability Auditor compute what an agent can actually REACH:
+#
+#   AGENT -> MCP SERVER -> TOOL -> API -> RESOURCE -> ACTION  (-> SYSTEM -> ACTION ...)
+#
+# `links` are the indirect connections between systems. They exist in the environment whether
+# or not anybody remembers them, which is exactly why they are written down here.
+
+servers:
+  repo-mcp: Repository MCP server
+  github-mcp: GitHub MCP server
+  sandbox-mcp: Sandbox execution MCP server
+  context-mcp: Context / RAG MCP server
+  quality-mcp: Quality and evaluation MCP server
+  observability-mcp: Observability MCP server
+  deploy-mcp: Deployment MCP server
+  vault-mcp: Secrets vault MCP server
+  admin-mcp: Platform administration MCP server
+  network-mcp: Outbound HTTP MCP server
+
+# sensitivity: low | medium | high | critical
+# side_effect: read | write | execute | deploy | admin
+tools:
+  repo.read:
+    {server: repo-mcp, api: "git: read objects", resource: source-repository, side_effect: read, sensitivity: low,
+     description: "Read a file or list files at a git ref"}
+  repo.search:
+    {server: repo-mcp, api: "git: grep", resource: source-repository, side_effect: read, sensitivity: low,
+     description: "Search repository text"}
+  branch.create:
+    {server: repo-mcp, api: "git: create ref refs/heads/feature/*", resource: feature-branch, side_effect: write, sensitivity: low,
+     description: "Create a feature branch from main"}
+  branch.write:
+    {server: repo-mcp, api: "git: commit to feature branch", resource: feature-branch, side_effect: write, sensitivity: medium,
+     description: "Commit files to a feature branch (never main, never pipeline or policy paths)"}
+  repo.write:
+    {server: github-mcp, api: "GitHub Contents API: PUT any path", resource: all-repository-paths, side_effect: write, sensitivity: high,
+     description: "Write any path on any branch the token can push to"}
+  github.workflow.write:
+    {server: github-mcp, api: "GitHub Contents API: PUT .github/workflows/*", resource: pipeline-definitions, side_effect: write, sensitivity: critical,
+     description: "Create or edit GitHub Actions workflow files"}
+  deployment.trigger:
+    {server: github-mcp, api: "GitHub Actions API: workflow_dispatch", resource: deployment-workflow, side_effect: deploy, sensitivity: critical,
+     description: "Start the deployment workflow"}
+  pr.create:
+    {server: github-mcp, api: "GitHub Pulls API: create", resource: pull-request, side_effect: write, sensitivity: low,
+     description: "Open a pull request from a feature branch"}
+  pr.read:
+    {server: github-mcp, api: "GitHub Pulls API: get diff", resource: pull-request, side_effect: read, sensitivity: low,
+     description: "Read a pull request and its diff"}
+  pr.comment:
+    {server: github-mcp, api: "GitHub Issues API: create comment", resource: pull-request, side_effect: write, sensitivity: low,
+     description: "Add a review comment to a pull request"}
+  main.merge:
+    {server: github-mcp, api: "GitHub Pulls API: merge", resource: main-branch, side_effect: write, sensitivity: critical,
+     description: "Merge a pull request into main"}
+  ci.read:
+    {server: github-mcp, api: "GitHub Actions API: get run", resource: pipeline-runs, side_effect: read, sensitivity: low,
+     description: "Read pipeline results"}
+  test.run:
+    {server: sandbox-mcp, api: "sandbox: run pytest", resource: sandbox-workspace, side_effect: execute, sensitivity: medium,
+     description: "Run the test suite of a branch inside the sandbox"}
+  context.search:
+    {server: context-mcp, api: "vector search", resource: context-index, side_effect: read, sensitivity: low,
+     description: "Retrieve ranked, budgeted context with citations"}
+  context.write:
+    {server: context-mcp, api: "index document", resource: context-index, side_effect: write, sensitivity: medium,
+     description: "Add a reviewed document to the context index"}
+  eval.run:
+    {server: quality-mcp, api: "evaluation harness", resource: evaluation-results, side_effect: execute, sensitivity: low,
+     description: "Run evaluation fixtures against AI output"}
+  security.scan:
+    {server: quality-mcp, api: "static analysis + secret scan", resource: security-findings, side_effect: read, sensitivity: low,
+     description: "Scan files for vulnerabilities and secrets"}
+  audit.read:
+    {server: observability-mcp, api: "audit log query", resource: audit-log, side_effect: read, sensitivity: medium,
+     description: "Read the audit log"}
+  logs.search:
+    {server: observability-mcp, api: "log query", resource: application-logs, side_effect: read, sensitivity: medium,
+     description: "Search application logs"}
+  metrics.read:
+    {server: observability-mcp, api: "metrics query", resource: application-metrics, side_effect: read, sensitivity: low,
+     description: "Read time-series metrics"}
+  deploy.read:
+    {server: deploy-mcp, api: "deployment history", resource: environments, side_effect: read, sensitivity: low,
+     description: "Read environment state and deployment history"}
+  deploy.staging:
+    {server: deploy-mcp, api: "deploy to non-production", resource: non-production-environments, side_effect: deploy, sensitivity: high,
+     description: "Deploy a build to DEV, TEST or STAGING"}
+  production.deploy:
+    {server: deploy-mcp, api: "deploy to production", resource: production-environment, side_effect: deploy, sensitivity: critical,
+     description: "Deploy a build to production"}
+  production.rollback:
+    {server: deploy-mcp, api: "rollback production", resource: production-environment, side_effect: deploy, sensitivity: critical,
+     description: "Redeploy the previous production build"}
+  secrets.read:
+    {server: vault-mcp, api: "vault: read secret", resource: secret-store, side_effect: read, sensitivity: critical,
+     description: "Read a secret from the vault"}
+  iam.modify:
+    {server: admin-mcp, api: "IAM: attach policy", resource: identity-and-access, side_effect: admin, sensitivity: critical,
+     description: "Change roles and permissions"}
+  policy.modify:
+    {server: admin-mcp, api: "agent policy: write", resource: agent-policies, side_effect: admin, sensitivity: critical,
+     description: "Change an agent policy"}
+  approval.decide:
+    {server: admin-mcp, api: "approvals: decide", resource: approval-records, side_effect: admin, sensitivity: critical,
+     description: "Approve or reject a pending approval"}
+  db.delete:
+    {server: admin-mcp, api: "database: drop", resource: production-database, side_effect: admin, sensitivity: critical,
+     description: "Delete a database"}
+  billing.read:
+    {server: admin-mcp, api: "billing: read", resource: billing-system, side_effect: read, sensitivity: high,
+     description: "Read billing data"}
+  network.fetch:
+    {server: network-mcp, api: "HTTP: any host", resource: public-internet, side_effect: write, sensitivity: critical,
+     description: "Send an HTTP request to an arbitrary host"}
+
+systems:
+  reviewed-pipeline: CI workflow as reviewed on main
+  modified-pipeline: CI workflow edited on a branch
+  deployment-workflow: Deployment workflow run
+  sandbox-process: Sandbox process running generated code
+
+# control.type: blocks   -> the path is cut by a technical control
+#               approval -> the path continues only after a named human approves
+links:
+  - from: action:repo.write
+    to: action:github.workflow.write
+    why: Unrestricted repository write includes .github/workflows/.
+    remediation:
+      - Replace repo.write with branch.write, which is path-restricted.
+
+  - from: action:github.workflow.write
+    to: system:modified-pipeline
+    why: The next push runs the edited workflow with the pipeline's own identity.
+    remediation:
+      - Remove workflow modification rights from the agent.
+      - Require CODEOWNER approval for .github/workflows/.
+
+  - from: system:modified-pipeline
+    to: action:production.deploy
+    why: An edited workflow can drop the branch filter and the approval step and still use the deploy credential.
+    remediation:
+      - Separate the deployment identity from the CI identity.
+      - Bind the deploy credential to a protected environment, not to the repository.
+
+  - from: system:modified-pipeline
+    to: action:secrets.read
+    why: An edited workflow can print pipeline secrets into its own log.
+    remediation:
+      - Scope pipeline secrets to protected environments only.
+
+  - from: action:deployment.trigger
+    to: system:deployment-workflow
+    why: workflow_dispatch starts the deployment workflow outside the pull-request path.
+    remediation:
+      - Remove deployment.trigger from the agent. Deployments start from a human approval.
+
+  - from: system:deployment-workflow
+    to: action:production.deploy
+    why: The deployment workflow's last job deploys to production.
+    remediation:
+      - Require Release Manager approval on the production environment for every trigger type.
+
+  - from: action:branch.write
+    to: system:reviewed-pipeline
+    why: A push to a feature branch starts the reviewed CI workflow.
+
+  - from: system:reviewed-pipeline
+    to: action:production.deploy
+    why: The same workflow file contains the deploy job.
+    control:
+      type: blocks
+      name: Deploy job runs only from main, after a human merge and Release Manager approval.
+
+  - from: action:pr.create
+    to: action:main.merge
+    why: A pull request is the only route into main.
+    control:
+      type: approval
+      name: Branch protection - a human reviewer approves and a human merges.
+
+  - from: action:test.run
+    to: system:sandbox-process
+    why: Generated code and generated tests execute here. Treat it as arbitrary code execution.
+
+  - from: system:sandbox-process
+    to: action:secrets.read
+    why: Code running in the sandbox can read its own process environment.
+    control:
+      type: blocks
+      name: Sandbox environment is scrubbed - only PATH and PYTHONPATH are passed in.
+
+  - from: system:sandbox-process
+    to: action:network.fetch
+    why: The sandbox is a subprocess, not a network-isolated container, so generated code could open a socket.
+    accepted_risk: >-
+      Known gap of this proof of concept. The sandbox holds no secrets, so there is nothing to
+      exfiltrate. A production deployment runs tests in a container with networking disabled.
+    remediation:
+      - Run test.run in a container with no network (docker run --network none or gVisor).

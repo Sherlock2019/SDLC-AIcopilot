@@ -1,0 +1,15 @@
+.env
+.lab-ports
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+backend/data/
+node_modules/
+frontend/dist/
+*.db
+.DS_Store

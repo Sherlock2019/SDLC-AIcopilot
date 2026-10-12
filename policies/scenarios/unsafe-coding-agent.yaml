@@ -1,0 +1,44 @@
+# INTENTIONALLY DANGEROUS configuration used by the least-privilege demo.
+#
+# It looks reasonable at a glance: production.deploy, main.merge and secrets.read are all
+# explicitly denied. The problem is what the three extra grants can REACH indirectly.
+agent: coding-agent
+display_name: Coding Agent
+kind: ai
+owner: Platform Engineering
+purpose: Generate feature branch changes (configuration inherited from an early pilot)
+model: default
+classification: internal
+data_accessed: [approved requirement, approved architecture, coding standards, repository source]
+cost_ceiling_usd: 2.00
+retention_days: 30
+network: none
+secrets: false
+
+allowed:
+  - repo.read
+  - repo.search
+  - context.search
+  - branch.create
+  - branch.write
+  - test.run
+  - pr.create
+  - repo.write              # write to any path, including .github/workflows/
+  - github.workflow.write   # edit pipeline definitions
+  - deployment.trigger      # start the deployment workflow
+
+denied:
+  - main.merge
+  - production.deploy
+  - production.rollback
+  - secrets.read
+  - iam.modify
+  - policy.modify
+  - db.delete
+  - billing.read
+  - network.fetch
+
+constraints:
+  branch.write:
+    deny_branches: [main, "release/*"]
+    deny_paths: ["policies/**", "**/*.pem", ".env*"]

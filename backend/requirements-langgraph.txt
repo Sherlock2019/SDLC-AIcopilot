@@ -1,0 +1,2 @@
+# Optional. Compiles the lab's step list into a LangGraph StateGraph (app/workflow/langgraph_adapter.py).
+langgraph

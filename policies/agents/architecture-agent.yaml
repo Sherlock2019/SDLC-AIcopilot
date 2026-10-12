@@ -1,0 +1,24 @@
+agent: architecture-agent
+display_name: Architecture Agent
+kind: ai
+owner: Solution Architecture
+purpose: Propose solution options with trade-offs for a human architect to choose from
+model: default
+classification: internal
+data_accessed: [approved requirement, architecture documents, database schema, repository source]
+cost_ceiling_usd: 0.75
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - context.search
+  - repo.read
+  - repo.search
+
+denied:
+  - branch.write
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch

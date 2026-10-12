@@ -1,0 +1,30 @@
+agent: deployment-advisor
+display_name: Deployment Advisor
+kind: ai
+owner: Release Engineering
+purpose: Assess release readiness and recommend go / no-go. Requests deployment, never performs it.
+model: default
+classification: internal
+data_accessed: [pipeline results, evaluation scores, security findings, environment state]
+cost_ceiling_usd: 0.25
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - ci.read
+  - deploy.read
+  - metrics.read
+
+# The advisor may REQUEST these. A human decides; the pipeline identity executes.
+require_approval:
+  - production.deploy
+  - production.rollback
+
+denied:
+  - deploy.staging
+  - main.merge
+  - secrets.read
+  - github.workflow.write
+  - deployment.trigger
+  - network.fetch

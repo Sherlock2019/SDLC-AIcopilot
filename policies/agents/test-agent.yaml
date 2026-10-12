@@ -1,0 +1,31 @@
+agent: test-agent
+display_name: Test Agent
+kind: ai
+owner: Quality Engineering
+purpose: Generate and run unit, API, integration, negative and security tests on the feature branch
+model: default
+classification: internal
+data_accessed: [acceptance criteria, security policy, feature branch source]
+cost_ceiling_usd: 1.00
+retention_days: 30
+network: none
+secrets: false
+
+allowed:
+  - repo.read
+  - repo.search
+  - context.search
+  - branch.write
+  - test.run
+
+denied:
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - github.workflow.write
+  - network.fetch
+
+constraints:
+  branch.write:
+    deny_branches: [main, "release/*"]
+    allow_paths: ["tests/**"]

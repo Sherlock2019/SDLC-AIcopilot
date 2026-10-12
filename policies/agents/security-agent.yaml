@@ -1,0 +1,27 @@
+agent: security-agent
+display_name: Security Agent
+kind: ai
+owner: Security Engineering
+purpose: Scan changes for vulnerabilities, secrets and injection, and audit what agents can reach
+model: default
+classification: confidential
+data_accessed: [pull request diff, security policy, agent policies, audit log]
+cost_ceiling_usd: 0.75
+retention_days: 365
+network: none
+secrets: false
+
+allowed:
+  - pr.read
+  - repo.read
+  - context.search
+  - security.scan
+  - audit.read
+
+denied:
+  - branch.write
+  - policy.modify
+  - main.merge
+  - production.deploy
+  - secrets.read
+  - network.fetch
