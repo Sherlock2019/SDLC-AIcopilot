@@ -76,9 +76,8 @@ class AnthropicProvider:
         )
 
     def complete(self, *, system, prompt, task, payload, model="", prompt_version="v2") -> LLMResponse:
+        client, model = self._client(), _model(model)  # raises a clear error if the SDK is missing
         import anthropic
-
-        client, model = self._client(), _model(model)
         with _Timed() as timer:
             try:
                 message = self._create(client, model, system, prompt)
